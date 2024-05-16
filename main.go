@@ -4,15 +4,26 @@ import (
 	"bank/handler"
 	"bank/repository"
 	"bank/service"
+	"fmt"
 	"net/http"
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/gorilla/mux"
 	"github.com/jmoiron/sqlx"
+	"github.com/spf13/viper"
 )
 
 func main() {
-	db, err := sqlx.Open("mysql", "root:P@ssw0rd@tcp(13.76.163.73:3306)/banking")
+	initConfig()
+	dsn := fmt.Sprintf("%v:%v@tcp(%v:%v)/%v?parseTime=true",
+		viper.GetString("db.username"),
+		viper.GetString("db.password"),
+		viper.GetString("db.host"),
+		viper.GetInt("db.port"),
+		viper.GetString("db.database"),
+	)
+	
+	db, err := sqlx.Open(viper.GetString("db.driver"), dsn)
 	if err != nil {
 		panic(err)
 	}
@@ -28,6 +39,17 @@ func main() {
 	rounter.HandleFunc("/customers", customerHandler.GetCustomers).Methods(http.MethodGet)
 	rounter.HandleFunc("/customers/{customerID:[0-9]+}", customerHandler.GetCustomer).Methods(http.MethodGet)
 
-	http.ListenAndServe(":8000", rounter)
+	http.ListenAndServe(fmt.Sprintf(":%v", viper.GetInt("app.port")), rounter)
 
+}
+
+func initConfig() {
+	viper.SetConfigName("config")
+	viper.SetConfigType("yaml")
+	viper.AddConfigPath(".")
+
+	err := viper.ReadInConfig()
+	if err != nil {
+		panic(err)
+	}
 }
